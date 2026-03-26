@@ -1,0 +1,32 @@
+body.not-authenticated .role-logged-in { 
+    display: none !important; 
+}
+
+
+body.authenticated .role-logged-out { 
+    display: none !important; 
+}
+
+
+body:not(.admin) .role-admin-only { 
+    display: none !important; 
+}
+
+
+body {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-top: 50px;
+}
+
+.container {
+    max-width: 800px;
+}
+
+.card {
+    margin-bottom: 20px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}

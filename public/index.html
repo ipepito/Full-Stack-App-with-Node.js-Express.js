@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full-Stack App (Student Build)</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+.page { display: none; }
+.page.active { display: block; }
+
+body.not-authenticated .role-logged-in { display: none; }
+body.authenticated .role-logged-out { display: none; }
+
+.role-admin { display: none; }
+body.is-admin .role-admin { display: block; }
+
+.navbar-dark { background:#1f2933; }
+.table thead { background:#1f2933; color:white; }
+</style>
+</head>
+
+<body class="not-authenticated">
+
+<nav class="navbar navbar-expand-lg navbar-dark">
+<div class="container-fluid">
+<a class="navbar-brand" href="#/">FULL STACK APP</a>
+
+<div class="ms-auto">
+
+<div class="role-logged-out">
+<a href="#/login" class="text-white me-3">Login</a>
+<a href="#/register" class="text-white">Register</a>
+</div>
+
+<div class="dropdown role-logged-in">
+<a class="text-white dropdown-toggle" href="#" data-bs-toggle="dropdown">
+<span id="navUser"></span>
+</a>
+<ul class="dropdown-menu dropdown-menu-end">
+<li><a class="dropdown-item" href="#/profile">Profile</a></li>
+<li><a class="dropdown-item" href="#/requests">My Requests</a></li>
+<li><hr class="dropdown-divider"></li>
+<li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
+</ul>
+</div>
+
+</div>
+</div>
+</nav>
+
+<main class="container mt-4">
+
+<section id="home-page" class="page active">
+<h3>Welcome to Full-Stack App</h3>
+</section>
+
+<section id="register-page" class="page">
+<h4>Register</h4>
+<form id="registerForm" class="col-md-6">
+<input class="form-control mb-2" id="regFirst" placeholder="First Name" required>
+<input class="form-control mb-2" id="regLast" placeholder="Last Name" required>
+<input class="form-control mb-2" id="regEmail" type="email" placeholder="Email" required>
+<input class="form-control mb-2" id="regPass" type="password" placeholder="Password (min 6)" required>
+<select class="form-control mb-2" id="regRole">
+<option value="user">User</option>
+<option value="admin">Admin</option>
+</select>
+<button class="btn btn-primary">Register</button>
+</form>
+</section>
+
+<section id="verify-email-page" class="page">
+<h4>Email Verification</h4>
+<p id="verifyText"></p>
+<button class="btn btn-success" id="verifyBtn">Simulate Verification</button>
+</section>
+
+<section id="login-page" class="page">
+<h4>Login</h4>
+<form id="loginForm" class="col-md-6">
+<input class="form-control mb-2" id="loginEmail" type="email" placeholder="Email" required>
+<input class="form-control mb-2" id="loginPass" type="password" placeholder="Password" required>
+<button class="btn btn-primary">Login</button>
+</form>
+<div id="loginError" class="text-danger mt-2"></div>
+</section>
+
+<section id="profile-page" class="page">
+<div class="card col-md-6">
+<div class="card-body">
+<h4>My Profile</h4>
+<p><strong>Name:</strong> <span id="profileName"></span></p>
+<p><strong>Email:</strong> <span id="profileEmail"></span></p>
+<p><strong>Role:</strong> <span id="profileRole"></span></p>
+</div>
+</div>
+</section>
+
+<section id="employees-page" class="page role-admin">
+<h4>Employees</h4>
+<button class="btn btn-success mb-2" id="addEmployeeBtn">+ Add Employee</button>
+<table class="table">
+<thead>
+<tr><th>ID</th><th>Email</th><th>Position</th><th>Dept</th><th>Actions</th></tr>
+</thead>
+<tbody id="employeesTable"></tbody>
+</table>
+</section>
+
+<section id="departments-page" class="page role-admin">
+<h4>Departments</h4>
+<button class="btn btn-success mb-2" id="addDepartmentBtn">+ Add Department</button>
+<table class="table">
+<thead>
+<tr><th>Name</th><th>Description</th><th>Actions</th></tr>
+</thead>
+<tbody id="departmentsTable"></tbody>
+</table>
+</section>
+
+<section id="accounts-page" class="page role-admin">
+<h4>Accounts</h4>
+<button class="btn btn-success mb-2" id="addAccountBtn">+ Add Account</button>
+<table class="table">
+<thead>
+<tr><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Actions</th></tr>
+</thead>
+<tbody id="accountsTable"></tbody>
+</table>
+</section>
+
+<section id="requests-page" class="page">
+<h4>My Requests</h4>
+<button class="btn btn-success mb-2" id="newRequestBtn">+ New Request</button>
+<table class="table">
+<thead><tr><th>Type</th><th>Status</th><th>Date</th></tr></thead>
+<tbody id="requestsTable"></tbody>
+</table>
+</section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+
+const STORAGE_KEY="ipt_demo_v1";
+let currentUser=null;
+let db={accounts:[],departments:[],employees:[],requests:[]};
+
+function loadFromStorage(){
+const data=localStorage.getItem(STORAGE_KEY);
+if(data){ db=JSON.parse(data); }
+else{
+db.accounts=[{first:"Admin",last:"User",email:"admin@example.com",password:"Password123!",role:"admin",verified:true}];
+db.departments=[{id:1,name:"Engineering",description:"Software team"}];
+saveToStorage();
+}
+}
+
+function saveToStorage(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(db)); }
+
+function navigateTo(hash){ window.location.hash=hash; }
+
+function handleRouting(){
+let hash=window.location.hash||"#/";
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+let page=hash.replace("#/","")||"home";
+let el=document.getElementById(page+"-page");
+if(!el){navigateTo("#/");return;}
+
+if(["profile","requests"].includes(page)&&!currentUser){navigateTo("#/login");return;}
+if(["employees","departments","accounts"].includes(page)&&(!currentUser||currentUser.role!=="admin")){navigateTo("#/");return;}
+
+el.classList.add("active");
+
+if(page==="profile") renderProfile();
+if(page==="employees") renderEmployees();
+if(page==="departments") renderDepartments();
+if(page==="accounts") renderAccounts();
+if(page==="requests") renderRequests();
+}
+
+window.addEventListener("hashchange",handleRouting);
+
+function setAuthState(isAuth,user){
+currentUser=isAuth?user:null;
+document.body.classList.toggle("authenticated",isAuth);
+document.body.classList.toggle("not-authenticated",!isAuth);
+document.body.classList.toggle("is-admin",isAuth&&user.role==="admin");
+document.getElementById("navUser").textContent=isAuth?user.first:"";
+}
+
+document.getElementById("logoutBtn").onclick=()=>{
+localStorage.removeItem("auth_token");
+setAuthState(false);
+navigateTo("#/");
+};
+
+document.getElementById("registerForm").onsubmit=e=>{
+e.preventDefault();
+if(db.accounts.find(a=>a.email===regEmail.value)){alert("Email exists");return;}
+db.accounts.push({first:regFirst.value,last:regLast.value,email:regEmail.value,password:regPass.value,role:regRole.value,verified:false});
+localStorage.setItem("unverified_email",regEmail.value);
+saveToStorage();
+verifyText.textContent="Verification sent to "+regEmail.value;
+navigateTo("#/verify-email");
+};
+
+verifyBtn.onclick=()=>{
+let email=localStorage.getItem("unverified_email");
+let acc=db.accounts.find(a=>a.email===email);
+if(acc){acc.verified=true;saveToStorage();navigateTo("#/login");}
+};
+
+loginForm.onsubmit=e=>{
+e.preventDefault();
+let user=db.accounts.find(a=>a.email===loginEmail.value&&a.password===loginPass.value&&a.verified);
+if(!user){loginError.textContent="Invalid credentials or not verified";return;}
+localStorage.setItem("auth_token",user.email);
+setAuthState(true,user);
+navigateTo("#/profile");
+};
+
+function renderProfile(){
+profileName.textContent=currentUser.first+" "+currentUser.last;
+profileEmail.textContent=currentUser.email;
+profileRole.textContent=currentUser.role;
+}
+
+function renderEmployees(){
+employeesTable.innerHTML=db.employees.map(emp=>`
+<tr>
+<td>${emp.id}</td>
+<td>${emp.email}</td>
+<td>${emp.position}</td>
+<td>${emp.dept}</td>
+<td>
+<button class="btn btn-sm btn-primary edit-emp" data-id="${emp.id}">Edit</button>
+<button class="btn btn-sm btn-danger delete-emp" data-id="${emp.id}">Delete</button>
+</td>
+</tr>`).join("");
+}
+
+function renderDepartments(){
+departmentsTable.innerHTML=db.departments.map(d=>`
+<tr>
+<td>${d.name}</td>
+<td>${d.description}</td>
+<td>
+<button class="btn btn-sm btn-danger delete-dept" data-id="${d.id}">Delete</button>
+</td>
+</tr>`).join("");
+}
+
+function renderAccounts(){
+accountsTable.innerHTML=db.accounts.map(a=>`
+<tr>
+<td>${a.first} ${a.last}</td>
+<td>${a.email}</td>
+<td>${a.role}</td>
+<td>${a.verified?"✔":""}</td>
+<td>
+<button class="btn btn-sm btn-danger delete-acc" data-email="${a.email}">Delete</button>
+</td>
+</tr>`).join("");
+}
+
+function renderRequests(){
+requestsTable.innerHTML=db.requests.filter(r=>r.email===currentUser.email)
+.map(r=>`<tr><td>${r.type}</td><td>${r.status}</td><td>${r.date}</td></tr>`).join("");
+}
+
+document.addEventListener("click",e=>{
+
+if(e.target.id==="addEmployeeBtn"){
+let id=prompt("Employee ID"); if(!id)return;
+let email=prompt("User Email"); if(!db.accounts.find(a=>a.email===email)){alert("No account");return;}
+let position=prompt("Position"); if(!position)return;
+let dept=prompt("Department"); if(!dept)return;
+db.employees.push({id,email,position,dept});
+saveToStorage();renderEmployees();
+}
+
+if(e.target.classList.contains("edit-emp")){
+let emp=db.employees.find(emp=>emp.id==e.target.dataset.id);
+let pos=prompt("New Position",emp.position); if(!pos)return;
+emp.position=pos; saveToStorage();renderEmployees();
+}
+
+if(e.target.classList.contains("delete-emp")){
+if(!confirm("Delete?"))return;
+db.employees=db.employees.filter(emp=>emp.id!=e.target.dataset.id);
+saveToStorage();renderEmployees();
+}
+
+if(e.target.id==="addDepartmentBtn"){
+let name=prompt("Department name"); if(!name)return;
+db.departments.push({id:Date.now(),name,description:""});
+saveToStorage();renderDepartments();
+}
+
+if(e.target.classList.contains("delete-dept")){
+db.departments=db.departments.filter(d=>d.id!=e.target.dataset.id);
+saveToStorage();renderDepartments();
+}
+
+if(e.target.id==="addAccountBtn"){
+alert("Use register page to add accounts");
+}
+
+if(e.target.classList.contains("delete-acc")){
+if(e.target.dataset.email===currentUser.email){alert("Cannot delete yourself");return;}
+db.accounts=db.accounts.filter(a=>a.email!==e.target.dataset.email);
+saveToStorage();renderAccounts();
+}
+
+if(e.target.id==="newRequestBtn"){
+let type=prompt("Request Type"); if(!type)return;
+db.requests.push({type,status:"Pending",date:new Date().toLocaleDateString(),email:currentUser.email});
+saveToStorage();renderRequests();
+}
+
+});
+
+loadFromStorage();
+handleRouting();
+
+</script>
+</body>
+</html>
